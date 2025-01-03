@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClickSense - Thumbnail Rater</title>
+    <style>
+        /* Variables CSS con tema claro */
+:root {
+  --primary-color: #2563eb;
+  --primary-light: #3b82f6;
+  --primary-dark: #1d4ed8;
+  --background-color: #ffffff;
+  --surface-color: #f8fafc;
+  --card-background: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --success-color: #22c55e;
+  --border-radius: 8px;
+  --transition-speed: 0.2s;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Reset y estilos base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Contenedor principal */
+.container {
+  width: min(90%, 600px);
+  background: var(--card-background);
+  box-shadow: var(--shadow);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  text-align: center;
+  margin: 2rem auto;
+  border: 1px solid var(--border-color);
+}
+
+/* Vista previa de miniaturas */
+.thumbnail-preview {
+  margin: 1.5rem 0;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  background: var(--surface-color);
+  transition: border-color var(--transition-speed) ease;
+}
+
+.thumbnail-preview:hover {
+  border-color: var(--primary-color);
+}
+
+/* Grid de métricas */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+/* Tarjetas de métricas */
+.metric-card {
+  background: var(--surface-color);
+  padding: 1.25rem;
+  border-radius: var(--border-radius);
+  text-align: left;
+  border: 1px solid var(--border-color);
+  transition: transform var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.metric-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.metric-value {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Barra de progreso */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 4px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+  transition: width var(--transition-speed) ease;
+}
+
+/* Botones y elementos interactivos */
+.button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-speed) ease;
+}
+
+.button:hover {
+  background-color: var(--primary-dark);
+}
+
+/* Media queries */
+@media (max-width: 768px) {
+  .container {
+    width: 95%;
+    padding: 1.5rem;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.metric-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+    </style>
+</head>
+<body>
+    <!-- Mantenemos la estructura HTML básica -->
+    <div class="container">
+        <h1>ClickSense - Thumbnail Rater - By SejeroDev</h1>
+        <div class="thumbnail-preview" id="thumbnailPreview">
+            <p>Upload a thumbnail to analyze.</p>
+        </div>
+        <input type="file" id="thumbnailInput" accept="image/*">
+        <label for="thumbnailInput">Upload Thumbnail</label>
+
+        <div class="category-section">
+            <p>Select the video category:</p>
+            <select id="category">
+                <option value="entertainment">Entertainment</option>
+                <option value="vlog">Vlog</option>
+                <option value="tutorial">Tutorial</option>
+                <option value="gaming">Gaming</option>
+                <option value="educational">Educational</option>
+                <option value="review">Review</option>
+                <option value="news">News</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div class="metrics-grid" id="metricsGrid"></div>
+        <div class="analysis" id="analysis"></div>
+        <div class="suggestions" id="suggestions"></div>
+    </div>
+
+    <script>
+        // Configuración de métricas por categoría
+        const categoryConfigs = {
+            entertainment: {
+                colorVariety: { weight: 2, optimal: 0.2 },
+                brightness: { weight: 1.5, optimal: 160 },
+                contrast: { weight: 1.5, optimal: 0.4 },
+                textDensity: { weight: 1, optimal: 0.15 }
+            },
+            tutorial: {
+                textDensity: { weight: 2, optimal: 0.25 },
+                contrast: { weight: 2, optimal: 0.5 },
+                colorVariety: { weight: 1, optimal: 0.15 },
+                brightness: { weight: 1, optimal: 140 }
+            },
+            gaming: {
+                colorVariety: { weight: 2, optimal: 0.25 },
+                brightness: { weight: 1.5, optimal: 150 },
+                contrast: { weight: 2, optimal: 0.45 },
+                textDensity: { weight: 1, optimal: 0.2 }
+            },
+            // Configuraciones para otras categorías...
+        };
+
+        function analyzeThumbnail(img, category) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const metrics = calculateImageMetrics(imageData);
+            const analysis = evaluateMetrics(metrics, category);
+            
+            displayResults(metrics, analysis);
+        }
+
+        function calculateImageMetrics(imageData) {
+            const pixels = imageData.data;
+            const metrics = {
+                brightness: 0,
+                contrast: 0,
+                colorVariety: 0,
+                textDensity: 0,
+                edgeDensity: 0,
+                focalPoints: 0
+            };
+
+            // Calcular brillo promedio y contraste
+            let brightnessValues = [];
+            let colorMap = new Map();
+            let edges = 0;
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const r = pixels[i];
+                const g = pixels[i + 1];
+                const b = pixels[i + 2];
+                
+                // Brillo
+                const brightness = (r + g + b) / 3;
+                brightnessValues.push(brightness);
+                metrics.brightness += brightness;
+
+                // Variedad de color
+                const color = `${r},${g},${b}`;
+                colorMap.set(color, (colorMap.get(color) || 0) + 1);
+
+                // Detección de bordes simple
+                if (i % (imageData.width * 4) !== 0) {
+                    const prevR = pixels[i - 4];
+                    const prevG = pixels[i - 3];
+                    const prevB = pixels[i - 2];
+                    
+                    const diff = Math.abs(r - prevR) + Math.abs(g - prevG) + Math.abs(b - prevB);
+                    if (diff > 100) edges++;
+                }
+            }
+
+            metrics.brightness /= (pixels.length / 4);
+            metrics.colorVariety = colorMap.size / (pixels.length / 4);
+            metrics.edgeDensity = edges / (pixels.length / 4);
+
+            // Calcular contraste usando desviación estándar
+            const mean = metrics.brightness;
+            metrics.contrast = Math.sqrt(
+                brightnessValues.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) 
+                / brightnessValues.length
+            ) / 255;
+
+            // Análisis de texto mejorado
+            metrics.textDensity = detectText(imageData);
+
+            return metrics;
+        }
+
+        function detectText(imageData) {
+            const { data, width, height } = imageData;
+            let textScore = 0;
+            const blockSize = 8;
+            
+            for (let y = 0; y < height - blockSize; y += blockSize) {
+                for (let x = 0; x < width - blockSize; x += blockSize) {
+                    let blockScore = 0;
+                    let edgeCount = 0;
+
+                    // Analizar patrones de bordes en bloques
+                    for (let by = 0; by < blockSize - 1; by++) {
+                        for (let bx = 0; bx < blockSize - 1; bx++) {
+                            const idx = ((y + by) * width + (x + bx)) * 4;
+                            const rightIdx = ((y + by) * width + (x + bx + 1)) * 4;
+                            const bottomIdx = ((y + by + 1) * width + (x + bx)) * 4;
+
+                            const current = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                            const right = (data[rightIdx] + data[rightIdx + 1] + data[rightIdx + 2]) / 3;
+                            const bottom = (data[bottomIdx] + data[bottomIdx + 1] + data[bottomIdx + 2]) / 3;
+
+                            if (Math.abs(current - right) > 30) edgeCount++;
+                            if (Math.abs(current - bottom) > 30) edgeCount++;
+                        }
+                    }
+
+                    // Evaluar si el patrón de bordes sugiere texto
+                    if (edgeCount > (blockSize * blockSize * 0.3)) {
+                        blockScore = 1;
+                    }
+
+                    textScore += blockScore;
+                }
+            }
+
+            return textScore / ((width / blockSize) * (height / blockSize));
+        }
+
+        function evaluateMetrics(metrics, category) {
+            const config = categoryConfigs[category] || categoryConfigs.other;
+            let score = 0;
+            let totalWeight = 0;
+            let analysis = [];
+
+            for (const [metric, values] of Object.entries(config)) {
+                const { weight, optimal } = values;
+                const actual = metrics[metric];
+                const difference = Math.abs(actual - optimal);
+                const metricScore = Math.max(0, 1 - (difference / optimal));
+                
+                score += metricScore * weight;
+                totalWeight += weight;
+
+                analysis.push({
+                    metric,
+                    score: metricScore,
+                    suggestion: generateSuggestion(metric, actual, optimal)
+                });
+            }
+
+            return {
+                totalScore: (score / totalWeight) * 10,
+                analysis
+            };
+        }
+
+        function generateSuggestion(metric, actual, optimal) {
+            const difference = actual - optimal;
+            const suggestions = {
+                brightness: {
+                    high: "Consider reducing the overall brightness for better viewer comfort.",
+                    low: "The thumbnail could benefit from increased brightness for better visibility."
+                },
+                contrast: {
+                    high: "High contrast might be overwhelming. Consider softening the differences.",
+                    low: "Increasing contrast could help elements stand out more."
+                },
+                colorVariety: {
+                    high: "The color palette might be too diverse. Consider using a more focused color scheme.",
+                    low: "Adding more color variety could make the thumbnail more engaging."
+                },
+                textDensity: {
+                    high: "Consider reducing text amount for better readability.",
+                    low: "Adding some text could help convey your message better."
+                }
+            };
+
+            const threshold = optimal * 0.2;
+            if (Math.abs(difference) > threshold) {
+                return suggestions[metric][difference > 0 ? 'high' : 'low'];
+            }
+            return null;
+        }
+
+        function displayResults(metrics, evaluation) {
+            const metricsGrid = document.getElementById('metricsGrid');
+            const analysis = document.getElementById('analysis');
+            const suggestions = document.getElementById('suggestions');
+
+            // Mostrar métricas
+            metricsGrid.innerHTML = Object.entries(metrics)
+                .map(([key, value]) => `
+                    <div class="metric-card">
+                        <div class="metric-title">${key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                        <div class="metric-value">${(value * 100).toFixed(1)}%</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${value * 100}%"></div>
+                        </div>
+                    </div>
+                `).join('');
+
+            // Mostrar análisis y sugerencias
+            analysis.innerHTML = `
+                <h3>Analysis Score: ${evaluation.totalScore.toFixed(1)}/10</h3>
+                <ul>
+                    ${evaluation.analysis
+                        .map(a => `<li>${a.metric}: ${(a.score * 10).toFixed(1)}/10</li>`)
+                        .join('')}
+                </ul>
+            `;
+
+            suggestions.innerHTML = `
+                <h3>Suggestions for Improvement</h3>
+                <ul>
+                    ${evaluation.analysis
+                        .filter(a => a.suggestion)
+                        .map(a => `<li>${a.suggestion}</li>`)
+                        .join('')}
+                </ul>
+            `;
+        }
+
+        // Event Listeners
+        document.getElementById('thumbnailInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        document.getElementById('thumbnailPreview').innerHTML = 
+                            `<img src="${e.target.result}" alt="Thumbnail Preview">`;
+                        analyzeThumbnail(this, document.getElementById('category').value);
+                    }
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('category').addEventListener('change', () => {
+            const img = document.querySelector('#thumbnailPreview img');
+            if (img) {
+                analyzeThumbnail(img, document.getElementById('category').value);
+            }
+        });
+    </script>
+</body>
+</html>
